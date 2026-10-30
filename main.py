@@ -11,6 +11,9 @@ import os
 import uuid
 import hashlib
 import random
+from functools import lru_cache
+from pathlib import Path
+from supabase import create_client, Client
 
 # --- 1. ПОДКЛЮЧЕНИЕ К БД ---
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://admin:secretpass@localhost:5432/baraholka_db")
@@ -169,6 +172,15 @@ app = FastAPI()
 os.makedirs("uploads", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+    @lru_cache
+def get_supabase() -> Client:
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not supabase_url or not supabase_key:
+        raise RuntimeError("Не заданы SUPABASE_URL и/или SUPABASE_SERVICE_ROLE_KEY")
+
+    return create_client(supabase_url, supabase_key)
 
 def hash_password(password: str):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -177,16 +189,69 @@ def hash_password(password: str):
 def read_root():
     return FileResponse("static/index.html")
 
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+EXT_BY_MIME = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
 @app.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
+async def upload_image(file: UploadFile = File(...)):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Можно загружать только изображения")
-    file_extension = os.path.splitext(file.filename)[1]
-    safe_filename = f"{uuid.uuid4()}{file_extension}"
-    file_path = os.path.join("uploads", safe_filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return {"image_url": f"/uploads/{safe_filename}"}
+
+    contents = await file.read()
+
+    if not contents:
+        raise HTTPException(status_code=400, detail="Файл пустой")
+
+    if len(contents) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=400, detail="Файл больше 10 MB")
+
+    original_name = file.filename or ""
+    ext = Path(original_name).suffix.lower()
+
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        ext = EXT_BY_MIME.get(file.content_type or "", "")
+
+    if not ext:
+        raise HTTPException(status_code=400, detail="Неподдерживаемый формат изображения")
+
+    bucket = os.getenv("SUPABASE_BUCKET", "images")
+    object_path = f"uploads/{uuid.uuid4().hex}{ext}"
+
+    try:
+        storage = get_supabase().storage.from_(bucket)
+        
+        storage.upload(
+            path=object_path,
+            file=contents,
+            file_options={
+                "content-type": file.content_type or "application/octet-stream",
+                "cache-control": "3600",
+                "upsert": "false",
+            },
+        )
+        
+        public_url = storage.get_public_url(object_path)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка загрузки в Supabase Storage: {e}",
+        )
+
+    # Обратите внимание: я добавил image_url, чтобы фронтенд не сломался, 
+    # так как старый код возвращал именно image_url.
+    return {
+        "url": public_url,
+        "image_url": public_url,
+        "filename": object_path,
+    }
 
 # --- АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ ---
 @app.post("/register")
