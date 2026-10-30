@@ -3,3 +3,4 @@ uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 python-multipart
+supabase>=2.13.0,<3.0.0
