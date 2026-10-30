@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Районная барахолка</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f4f5f7; 
+            background-image: radial-gradient(#d1d5db 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            min-height: 100vh;
+            margin: 0; 
+            padding: 20px; 
+        }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto 20px auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 24px; }
+        .user-info { display: flex; align-items: center; gap: 15px; font-weight: bold; flex-wrap: wrap;}
+        
+        .user-avatar { width: 35px; height: 35px; border-radius: 50%; background-color: #3498db; color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-right: 5px; }
+        
+        .btn-logout { background: #e74c3c; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-my { background: #3498db; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; position: relative; }
+        .unread-badge { position: absolute; top: -8px; right: -8px; background: #e74c3c; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; border: 2px solid white; display: none; }
+        
+        .add-form { background: white; padding: 20px; border-radius: 8px; }
+        .add-form h3 { margin-top: 0; text-align: center; color: #333; }
+        .add-form input, .add-form textarea, .add-form select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        .add-form button { width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        
+        .filter-bar { text-align: center; margin-bottom: 20px; }
+        .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+        .card { background: white; border-radius: 8px; padding: 20px; width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
+        .card-img { width: 100%; height: 160px; object-fit: cover; border-radius: 5px; margin-bottom: 10px; background-color: #eee; }
+        .card.promoted { border: 2px solid #f39c12; background-color: #fffdf5; }
+        .badge { position: absolute; top: -10px; right: 10px; background: #f39c12; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .card h2 { margin: 0 0 10px 0; font-size: 18px; color: #2c3e50; }
+        .price { font-size: 22px; font-weight: bold; color: #27ae60; margin-bottom: 10px; }
+        .desc { font-size: 14px; color: #7f8c8d; margin-bottom: 15px; min-height: 40px; }
+        .btn { display: block; width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; margin-bottom: 5px;}
+        .btn-promote { background: #3498db; color: white; }
+        .btn-promoted { background: #f39c12; color: white; cursor: default; }
+        .btn-contact { background: #2ecc71; color: white; }
+        
+        .heart-icon { position: absolute; top: 15px; left: 15px; font-size: 24px; cursor: pointer; z-index: 10; transition: transform 0.2s; text-shadow: 0 0 5px rgba(255,255,255,0.8); }
+        .heart-icon:hover { transform: scale(1.2); }
+        .heart-icon.active { color: #e91e63; }
+        .heart-icon.inactive { color: white; }
+
+        /* Плавающая кнопка ТЕХПОДДЕРЖКИ */
+        .support-fab { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            width: 60px; 
+            height: 60px; 
+            border-radius: 50%; 
+            background: #34495e; 
+            color: white; 
+            font-size: 30px; 
+            border: none; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            cursor: pointer; 
+            z-index: 4000; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .support-fab:hover { transform: scale(1.1); background: #2c3e50; }
+
+        .chat-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 5000; }
+        .chat-box { background: white; width: 350px; height: 500px; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background: #34495e; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; font-weight: bold;}
+        .chat-close { cursor: pointer; font-size: 20px; background: none; border: none; color: white; }
+        .chat-messages { flex-grow: 1; padding: 15px; overflow-y: auto; background: #ecf0f1; display: flex; flex-direction: column; gap: 10px;}
+        .msg-bubble { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 14px; }
+        .msg-own { background: #3498db; color: white; align-self: flex-end; }
+        .msg-other { background: white; color: #333; align-self: flex-start; border: 1px solid #ddd;}
+        .msg-sender { font-size: 10px; opacity: 0.7; margin-bottom: 3px; display: block; }
+        .chat-input-area { display: flex; padding: 10px; background: white; border-top: 1px solid #ddd; }
+        .chat-input-area input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-right: 10px; }
+        .chat-input-area button { padding: 10px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;}
+        
+        .chat-img { max-width: 100%; border-radius: 5px; margin-top: 5px; cursor: pointer; }
+        .date-divider { text-align: center; margin: 15px 0 10px 0; display: flex; align-items: center; justify-content: center; }
+        .date-divider span { background: #bdc3c7; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+
+        .modal-my-chats { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .my-chats-box { background: white; width: 500px; max-height: 80vh; border-radius: 10px; padding: 20px; overflow-y: auto; position: relative; }
+        
+        .details-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 2000; }
+        .details-box { background: white; width: 90%; max-width: 600px; max-height: 90vh; border-radius: 10px; padding: 25px; overflow-y: auto; position: relative; }
+        
+        .gallery-container { display: flex; overflow-x: auto; gap: 10px; margin-bottom: 15px; padding-bottom: 10px; background: #f4f5f7; border-radius: 8px; padding: 10px; }
+        .gallery-img { height: 250px; object-fit: contain; border-radius: 5px; background: white; }
+
+        .det-price { font-size: 28px; font-weight: bold; color: #27ae60; margin-bottom: 15px; }
+        
+        .toast { padding: 12px 20px; border-radius: 5px; color: white; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); opacity: 0; transform: translateX(100%); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast-success { background: #27ae60; }
+        .toast-error { background: #e74c3c; }
+        .toast-info { background: #3498db; }
+        
+        .confirm-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 6000; }
+        
+        .admin-row { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .admin-row.blocked { background-color: #ffeaea; border-color: #e74c3c; opacity: 0.8; }
+        .admin-row.sold { background-color: #f9f9f9; opacity: 0.7; }
+
+        @media (max-width: 768px) {
+            body { padding: 10px 5px; }
+            .header { padding: 10px; margin-bottom: 10px; flex-direction: row; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+            .header h1 { font-size: 18px; }
+            .user-info { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 5px; width: 100%; }
+            .btn-my, .btn-logout { padding: 6px 10px; font-size: 12px; border-radius: 4px; }
+            
+            .filter-bar { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; margin-bottom: 15px; padding: 0 5px; }
+            .filter-bar input[type="text"] { grid-column: span 2; padding: 8px; font-size: 14px; width: 100% !important; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+            .filter-bar select { padding: 8px; font-size: 12px; width: 100% !important; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+            .filter-bar select#filter-district { grid-column: span 2; }
+
+            .container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; justify-content: stretch; }
+            .card { width: 100%; padding: 8px; border-radius: 6px; box-sizing: border-box; }
+            .card-img { height: 110px; margin-bottom: 5px; border-radius: 4px; }
+            .card h2 { font-size: 13px; margin-bottom: 3px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+            .price { font-size: 15px; margin-bottom: 3px; }
+            .desc { display: none; } 
+            .card > div:nth-of-type(1) { font-size: 10px; margin-bottom: 4px; } 
+            .card > div:nth-of-type(2) { font-size: 10px; margin-bottom: 4px; flex-direction: column; gap: 2px; } 
+            .card > div:nth-of-type(3) { display: none; } 
+            .btn { padding: 6px; font-size: 11px; margin-bottom: 3px; border-radius: 4px; }
+            .heart-icon { font-size: 18px; top: 8px; left: 8px; }
+            .badge { font-size: 9px; padding: 2px 6px; top: -6px; right: 5px; }
+
+            .my-chats-box, .details-box { width: 95% !important; max-width: 95% !important; padding: 15px; max-height: 90vh; }
+            .support-fab { width: 50px; height: 50px; font-size: 24px; bottom: 15px; right: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+    <!-- Кнопка Техподдержки -->
+    <button class="support-fab" onclick="openSupportChat()" title="Техподдержка">💬</button>
+
+    <div id="main-content" style="display: block;">
+        <div class="header">
+            <h1>🛍 Районная барахолка</h1>
+            
+            <div id="guest-info-block" class="user-info">
+                <button class="btn-my" onclick="showLoginModal()" style="background: #2ecc71;">🔑 Войти / Регистрация</button>
+            </div>
+
+            <div id="user-info-block" class="user-info" style="display:none;">
+                <span style="display: flex; align-items: center;">
+                    <div id="user-avatar" class="user-avatar">?</div>
+                    Привет, <span id="display-name" style="margin-left: 5px;"></span>!
+                </span>
+                <button id="admin-btn" class="btn-my" onclick="showAdminPanel()" style="background:#8e44ad; display:none;">👑 Админ-панель</button>
+                <button class="btn-my" onclick="showCreateModal()" style="background:#2ecc71;">➕ Разместить</button>
+                <button class="btn-my" onclick="showMyListings()" style="background:#9b59b6;">📦 Мои объявления</button>
+                <button class="btn-my" onclick="showMyFavorites()" style="background:#e91e63;">❤️ Избранное</button>
+                <button class="btn-my" onclick="showMyChats()">
+                    💬 Мои чаты
+                    <span id="unread-badge" class="unread-badge">0</span>
+                </button>
+                <button class="btn-logout" onclick="logout()">Выйти</button>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <input type="text" id="search-input" autocomplete="off" placeholder="🔍 Поиск по названию..." oninput="debouncedLoadListings()">
+            <select id="sort-select" onchange="loadListings(false)">
+                <option value="new">Сначала новые</option>
+                <option value="cheap">Сначала дешевые</option>
+                <option value="expensive">Сначала дорогие</option>
+            </select>
+            <select id="filter-category" onchange="loadListings(false)">
+                <option value="">Все категории</option>
+            </select>
+            <select id="filter-district" onchange="loadListings(false)">
+                <option value="">Все районы</option>
+            </select>
+        </div>
+        
+        <div class="container" id="listings-container"></div>
+        
+        <div style="text-align: center; margin-top: 30px; margin-bottom: 50px;">
+            <button class="btn btn-promote" id="load-more-btn" onclick="loadListings(true)" style="display: none; max-width: 300px; margin: 0 auto; font-size: 16px; padding: 12px;">
+                Показать еще ⬇️
+            </button>
+        </div>
+    </div>
+
+    <!-- Модальное окно ЧАТА ТЕХПОДДЕРЖКИ -->
+    <div class="chat-modal" id="support-chat-modal">
+        <div class="chat-box">
+            <div class="chat-header" style="background: #e67e22;">
+                <span>🎧 Техподдержка</span>
+                <button class="chat-close" onclick="closeSupportChat()">✖</button>
+            </div>
+            <div class="chat-messages" id="support-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="support-input" placeholder="Опишите вашу проблему..." onkeypress="if(event.key === 'Enter') sendSupportMessage()">
+                <button onclick="sendSupportMessage()" style="background: #e67e22;">Отпр.</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно ВХОДА / РЕГИСТРАЦИИ -->
+    <div class="modal-my-chats" id="login-modal" style="z-index: 4000;">
+        <div class="my-chats-box" style="max-width: 400px;">
+            <button class="chat-close" style="position: absolute; right: 15px; top: 15px; color: #333; background: #eee; padding: 5px 10px; border-radius: 50%;" onclick="document.getElementById('login-modal').style.display='none'">✖</button>
+            
+            <div id="auth-tabs" style="display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+                <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1; padding:10px; background:none; border:none; border-bottom: 3px solid #27ae60; font-weight:bold; color:#27ae60; cursor:pointer;">Вход</button>
+                <button id="tab-register" onclick="switchAuthTab('register')" style="flex:1; padding:10px; background:none; border:none; border-bottom: 3px solid transparent; font-weight:bold; color:#999; cursor:pointer;">Регистрация</button>
+            </div>
+
+            <div id="form-login">
+                <input type="email" id="login-email" placeholder="Ваш Email" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <input type="password" id="login-password" placeholder="Пароль" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <button onclick="doLogin()" style="width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;">Войти</button>
+                <p style="text-align: center; margin-top: 15px;"><a href="#" onclick="switchAuthTab('reset-req'); return false;" style="color: #3498db; font-size: 14px;">Забыли пароль?</a></p>
+            </div>
+
+            <div id="form-register" style="display: none;">
+                <input type="text" id="reg-name" placeholder="Ваше Имя" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <input type="email" id="reg-email" placeholder="Email" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <input type="password" id="reg-password" placeholder="Придумайте пароль" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <button onclick="doRegister()" style="width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;">Зарегистрироваться</button>
+            </div>
+
+            <div id="form-verify" style="display: none;">
+                <p style="text-align:center; color:#555; font-size:14px; margin-bottom:10px;">Код отправлен на почту. (Также он напечатан в терминале).</p>
+                <input type="text" id="verify-code" placeholder="Код из 4 цифр" maxlength="4" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #f39c12; border-radius: 5px; font-size: 20px; text-align: center; letter-spacing: 5px;">
+                <button onclick="doVerify()" style="width: 100%; padding: 12px; background: #f39c12; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;">Подтвердить</button>
+            </div>
+
+            <div id="form-reset-req" style="display: none;">
+                <p style="text-align:center; color:#555; font-size:14px; margin-bottom:10px;">Введите email, указанный при регистрации.</p>
+                <input type="email" id="reset-email" placeholder="Ваш Email" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <button onclick="requestPasswordReset()" style="width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;">Получить код</button>
+                <p style="text-align: center; margin-top: 10px;"><a href="#" onclick="switchAuthTab('login'); return false;" style="color: #999; font-size: 12px;">Назад ко входу</a></p>
+            </div>
+
+            <div id="form-reset-conf" style="display: none;">
+                <input type="text" id="reset-code" placeholder="Код из 4 цифр (в терминале)" maxlength="4" style="width: 100%; padding: 12px; margin-bottom: 10px; border: 2px solid #f39c12; border-radius: 5px; font-size: 16px; text-align: center; letter-spacing: 2px;">
+                <input type="password" id="reset-new-pass" placeholder="Новый пароль" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                <button onclick="confirmPasswordReset()" style="width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;">Сменить пароль</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно СОЗДАНИЯ ОБЪЯВЛЕНИЯ -->
+    <div class="modal-my-chats" id="create-listing-modal">
+        <div class="my-chats-box" style="max-width: 500px; padding: 0;">
+            <div class="add-form" style="padding: 25px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 id="form-title" style="margin: 0;">Выставить вещь на продажу</h3>
+                    <button class="chat-close" style="color:black; background: none;" onclick="closeCreateModal()">✖</button>
+                </div>
+                <form id="add-form" onsubmit="createListing(event)">
+                    <input type="text" id="title" placeholder="Название" required>
+                    <textarea id="description" placeholder="Описание" rows="3" required></textarea>
+                    <input type="number" id="price" placeholder="Цена в рублях" required min="0">
+                    <input type="file" id="image_file" accept="image/*" multiple>
+                    <div id="current-image-info" style="display:none; font-size:12px; margin-bottom:10px; color:#555;"></div>
+                    
+                    <select id="category" required></select>
+                    <select id="district">
+                        <option value="">Не выбран (Любой район)</option>
+                    </select>
+                    
+                    <input type="tel" id="seller_phone" placeholder="Ваш телефон (необязательно)">
+                    <button type="submit" id="form-submit-btn">Опубликовать</button>
+                    <button type="button" id="cancel-edit-btn" style="display:none; background:#e74c3c; margin-top:10px;" onclick="cancelEdit()">Отменить редактирование</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-modal" id="chat-modal">
+        <div class="chat-box">
+            <div class="chat-header">
+                <span id="chat-title">Чат</span>
+                <button class="chat-close" onclick="closeChat()">✖</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="file" id="chat-image-input" accept="image/*" style="display: none;" onchange="handleChatImageUpload()">
+                <button type="button" onclick="document.getElementById('chat-image-input').click()" style="background: #95a5a6; padding: 10px; margin-right: 5px;" title="Прикрепить фото">📎</button>
+                <input type="text" id="chat-input" placeholder="Написать сообщение..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                <button onclick="sendMessage()">Отпр.</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="details-modal" id="details-modal">
+        <div class="details-box">
+            <button class="chat-close" style="position: absolute; right: 15px; top: 15px; color: #333; background: #eee; padding: 5px 10px; border-radius: 50%;" onclick="closeDetails()">✖</button>
+            <div id="det-gallery" class="gallery-container"></div>
+            <h2 id="det-title" style="margin: 0 0 10px 0; color: #2c3e50;"></h2>
+            <div id="det-price" class="det-price"></div>
+            <p id="det-desc" style="color: #555; font-size: 16px; line-height: 1.5; margin-bottom: 20px;"></p>
+            <div id="det-info" style="font-size: 14px; color: #34495e; margin-bottom: 20px; border-top: 1px solid #eee; padding-top: 15px;"></div>
+            <a id="det-phone" href="#" class="btn btn-contact" style="text-decoration: none; text-align: center; display: none; background: #3498db;"></a>
+        </div>
+    </div>
+
+    <div class="modal-my-chats" id="seller-profile-modal" style="z-index: 2500;">
+        <div class="my-chats-box" style="width: 700px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 id="seller-profile-title" style="margin:0;">Товары продавца</h2>
+                <button class="chat-close" style="color:black;" onclick="document.getElementById('seller-profile-modal').style.display='none'">✖</button>
+            </div>
+            <div id="seller-profile-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-my-chats" id="my-chats-modal">
+        <div class="my-chats-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0;">Мои сообщения</h2>
+                <button class="chat-close" style="color:black;" onclick="document.getElementById('my-chats-modal').style.display='none'">✖</button>
+            </div>
+            <div id="my-chats-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-my-chats" id="my-listings-modal">
+        <div class="my-chats-box" style="width: 700px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0;">Мои объявления</h2>
+                <button class="chat-close" style="color:black;" onclick="document.getElementById('my-listings-modal').style.display='none'">✖</button>
+            </div>
+            <div id="my-listings-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-my-chats" id="favorites-modal">
+        <div class="my-chats-box" style="width: 700px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0;">❤️ Избранное</h2>
+                <button class="chat-close" style="color:black;" onclick="document.getElementById('favorites-modal').style.display='none'">✖</button>
+            </div>
+            <div id="favorites-list"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно АДМИН-ПАНЕЛИ -->
+    <div class="modal-my-chats" id="admin-modal">
+        <div class="my-chats-box" style="width: 900px; max-width: 95%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0;">👑 Админ-панель</h2>
+                <button class="chat-close" style="color:black;" onclick="document.getElementById('admin-modal').style.display='none'">✖</button>
+            </div>
+            
+            <!-- БЛОК ТЕХПОДДЕРЖКИ В АДМИНКЕ -->
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba;">
+                <h3 style="margin-top:0; color: #856404;">🎧 Обращения в Техподдержку</h3>
+                <div id="admin-support-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <div style="background: #f4f5f7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top:0;">Управление категориями</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="new-cat-input" placeholder="Название новой категории..." style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                    <button class="btn btn-promote" onclick="addCategory()" style="width: auto; margin: 0; padding: 10px 20px; background: #27ae60;">Добавить</button>
+                </div>
+                <div id="admin-categories-list" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+            </div>
+
+            <div style="background: #f4f5f7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top:0;">Управление районами</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="new-dist-input" placeholder="Название нового района..." style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                    <button class="btn btn-promote" onclick="addDistrict()" style="width: auto; margin: 0; padding: 10px 20px; background: #27ae60;">Добавить</button>
+                </div>
+                <div id="admin-districts-list" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+            </div>
+
+            <div style="background: #f4f5f7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top:0;">Управление пользователями</h3>
+                <div id="admin-users-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <h3>Все товары</h3>
+            <div id="admin-listings-list"></div>
+        </div>
+    </div>
+
+    <div class="confirm-modal" id="confirm-modal">
+        <div style="background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #2c3e50;">Подтверждение</h3>
+            <p id="confirm-text" style="color: #555; margin-bottom: 20px; font-size: 16px;"></p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="confirm-yes-btn" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; flex: 1;">Да, уверен</button>
+                <button onclick="closeConfirm()" style="background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; flex: 1;">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_EMAIL = "admin@admin.com"; 
+        const ADMIN_PASSWORD = "superadmin123"; 
+
+        let currentListingId = null;
+        let currentOtherEmail = null; 
+        let chatInterval = null;
+        let editListingId = null;
+        let user = JSON.parse(localStorage.getItem('baraholka_user_data'));
+        let allListings = [];
+        let myFavoriteIds = [];
+        let globalCategories = [];
+        let globalDistricts = [];
+        
+        let currentOffset = 0;
+        const limitPerPage = 20;
+
+        // Переменные для техподдержки
+        let supportInterval = null;
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            let icon = 'ℹ️';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '❌';
+            toast.innerHTML = `<span>${icon}</span> <span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showConfirm(message, callback) {
+            document.getElementById('confirm-text').innerText = message;
+            document.getElementById('confirm-modal').style.display = 'flex';
+            document.getElementById('confirm-yes-btn').onclick = () => {
+                document.getElementById('confirm-modal').style.display = 'none';
+                callback();
+            };
+        }
+
+        function closeConfirm() { document.getElementById('confirm-modal').style.display = 'none'; }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString.replace(' ', 'T'));
+            if (isNaN(date)) return dateString;
+            const today = new Date();
+            const yesterday = new Date();
+            yesterday.setDate(today.getDate() - 1);
+            const timeStr = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            if (date.toDateString() === today.toDateString()) return `Сегодня, ${timeStr}`;
+            else if (date.toDateString() === yesterday.toDateString()) return `Вчера, ${timeStr}`;
+            else return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + `, ${timeStr}`;
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // --- ТЕХПОДДЕРЖКА ---
+                function openSupportChat() {
+            if (!user) {
+                showToast("Войдите, чтобы написать в поддержку", "info");
+                showLoginModal();
+                return;
+            }
+            if (user.email === ADMIN_EMAIL) return;
+
+            document.getElementById('support-chat-modal').style.display = 'flex';
+            document.getElementById('support-chat-modal').querySelector('.chat-header span').innerText = "🎧 Техподдержка";
+            
+            const sendBtn = document.getElementById('support-chat-modal').querySelector('.chat-input-area button');
+            sendBtn.onclick = sendSupportMessage;
+
+            // 👇 ВОТ ЭТА СТРОКА ПОМЕЧАЕТ СООБЩЕНИЯ ОТ АДМИНА КАК ПРОЧИТАННЫЕ
+            fetch(`/messages/read/0/admin@admin.com/${user.email}`, { method: 'PUT' }).then(() => checkUnread());
+
+            loadSupportMessages();
+            if (supportInterval) clearInterval(supportInterval);
+            supportInterval = setInterval(loadSupportMessages, 3000);
+        }
+
+        function closeSupportChat() {
+            document.getElementById('support-chat-modal').style.display = 'none';
+            if (supportInterval) { clearInterval(supportInterval); supportInterval = null; }
+        }
+
+        async function loadSupportMessages() {
+            if (!user || !user.email) return;
+            try {
+                const res = await fetch(`/messages/0/admin@admin.com/${user.email}`);
+                const messages = await res.json();
+                const container = document.getElementById('support-messages');
+                const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+                container.innerHTML = '';
+
+                if (messages.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#999; font-size:13px;">Задайте любой вопрос, и мы ответим вам!</p>';
+                }
+
+                messages.forEach(msg => {
+                    const isOwn = msg.sender_email === user.email;
+                    container.innerHTML += `
+                        <div class="msg-bubble ${isOwn ? 'msg-own' : 'msg-other'}">
+                            <span class="msg-sender">${isOwn ? 'Вы' : 'Поддержка'} • ${formatDate(msg.created_at)}</span>
+                            ${escapeHtml(msg.text)}
+                        </div>
+                    `;
+                });
+                if (isScrolledToBottom) container.scrollTop = container.scrollHeight;
+            } catch (e) { console.error(e); }
+        }
+
+        async function sendSupportMessage() {
+            const input = document.getElementById('support-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            await fetch('/messages/', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    listing_id: 0, text: text, image_url: null,
+                    sender_email: user.email, receiver_email: "admin@admin.com"
+                })
+            });
+            loadSupportMessages();
+        }
+
+        // --- ОСТАЛЬНОЙ ФУНКЦИОНАЛ ---
+        async function loadCategories() {
+            try {
+                const res = await fetch('/categories');
+                globalCategories = await res.json();
+                const catSelect = document.getElementById('category');
+                const filterSelect = document.getElementById('filter-category');
+                catSelect.innerHTML = '<option value="">Не выбрана (Другое)</option>';
+                filterSelect.innerHTML = '<option value="">Все категории</option>';
+                globalCategories.forEach(c => {
+                    catSelect.innerHTML += `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`;
+                    filterSelect.innerHTML += `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadDistricts() {
+            try {
+                const res = await fetch('/districts');
+                globalDistricts = await res.json();
+                const distSelect = document.getElementById('district');
+                const filterSelect = document.getElementById('filter-district');
+                distSelect.innerHTML = '<option value="">Не выбран (Любой район)</option>';
+                filterSelect.innerHTML = '<option value="">Все районы</option>';
+                globalDistricts.forEach(d => {
+                    distSelect.innerHTML += `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`;
+                    filterSelect.innerHTML += `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+               async function init() {
+            await loadCategories();
+            await loadDistricts();
+            document.getElementById('search-input').value = '';
+
+            if (user && user.email) {
+                document.getElementById('guest-info-block').style.display = 'none';
+                document.getElementById('user-info-block').style.display = 'flex';
+                document.getElementById('display-name').innerText = user.name;
+
+                const avatarEl = document.getElementById('user-avatar');
+                if (avatarEl && user.name) {
+                    avatarEl.innerText = user.name.charAt(0);
+                    let hash = 0;
+                    for (let i = 0; i < user.name.length; i++) hash = user.name.charCodeAt(i) + ((hash << 5) - hash);
+                    const colors = ['#e74c3c', '#3498db', '#9b59b6', '#1abc9c', '#f39c12', '#2ecc71', '#e67e22', '#34495e'];
+                    avatarEl.style.backgroundColor = colors[Math.abs(hash) % colors.length];
+                }
+                
+                if (user.email === ADMIN_EMAIL) {
+                    document.getElementById('admin-btn').style.display = 'block';
+                    document.querySelector('.support-fab').style.display = 'none';
+                } else {
+                    document.getElementById('admin-btn').style.display = 'none';
+                    document.querySelector('.support-fab').style.display = 'flex';
+                }
+
+                await loadMyFavorites(); 
+                checkUnread(); 
+                setInterval(checkUnread, 5000); 
+            } else {
+                document.getElementById('guest-info-block').style.display = 'block';
+                document.getElementById('user-info-block').style.display = 'none';
+                document.querySelector('.support-fab').style.display = 'flex';
+                myFavoriteIds = [];
+            }
+            loadListings(false);
+        }
+
+        function showLoginModal() { 
+            document.getElementById('login-modal').style.display = 'flex'; 
+            switchAuthTab('login');
+        }
+
+        let pendingEmail = "";
+        function switchAuthTab(tab) {
+            document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+            document.getElementById('form-verify').style.display = 'none';
+            document.getElementById('form-reset-req').style.display = tab === 'reset-req' ? 'block' : 'none';
+            document.getElementById('form-reset-conf').style.display = tab === 'reset-conf' ? 'block' : 'none';
+            const tabs = ['login', 'register'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('tab-' + t);
+                if (btn) {
+                    btn.style.borderBottomColor = t === tab ? '#27ae60' : 'transparent';
+                    btn.style.color = t === tab ? '#27ae60' : '#999';
+                }
+            });
+        }
+
+        async function doRegister() {
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+            if (!name || !email || !password) return showToast("Заполните все поля!", "error");
+            try {
+                const res = await fetch('/register', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+                if (!res.ok) return showToast(data.detail, "error");
+                showToast(data.message, "success");
+                pendingEmail = email;
+                document.getElementById('form-register').style.display = 'none';
+                document.getElementById('form-verify').style.display = 'block';
+                document.getElementById('tab-register').style.borderBottomColor = 'transparent';
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        async function doVerify() {
+            const code = document.getElementById('verify-code').value.trim();
+            if (!code) return;
+            try {
+                const res = await fetch('/verify', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: pendingEmail, code: code })
+                });
+                const data = await res.json();
+                if (!res.ok) return showToast(data.detail, "error");
+                showToast("Почта подтверждена! Теперь войдите.", "success");
+                switchAuthTab('login');
+                document.getElementById('login-email').value = pendingEmail;
+                document.getElementById('verify-code').value = '';
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            if (!email || !password) return showToast("Заполните email и пароль!", "error");
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (!res.ok) return showToast(data.detail, "error");
+                
+                user = { name: data.name, email: data.email };
+                localStorage.setItem('baraholka_user_data', JSON.stringify(user));
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('login-password').value = '';
+                init();
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        async function requestPasswordReset() {
+            const email = document.getElementById('reset-email').value.trim();
+            if (!email) return showToast("Введите email", "error");
+            try {
+                const res = await fetch('/reset-password-request', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (!res.ok) return showToast(data.detail, "error");
+                showToast(data.message, "success");
+                switchAuthTab('reset-conf');
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        async function confirmPasswordReset() {
+            const email = document.getElementById('reset-email').value.trim();
+            const code = document.getElementById('reset-code').value.trim();
+            const new_password = document.getElementById('reset-new-pass').value;
+            if (!code || !new_password) return showToast("Заполните все поля", "error");
+            try {
+                const res = await fetch('/reset-password-confirm', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code, new_password })
+                });
+                const data = await res.json();
+                if (!res.ok) return showToast(data.detail, "error");
+                showToast(data.message, "success");
+                switchAuthTab('login');
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        function logout() {
+            localStorage.removeItem('baraholka_user_data');
+            user = null;
+            init();
+        }
+
+        function showCreateModal() {
+            if (!user) return showToast("Войдите, чтобы разместить объявление", "info");
+            document.getElementById('create-listing-modal').style.display = 'flex';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('create-listing-modal').style.display = 'none';
+            cancelEdit();
+        }
+
+        async function loadMyFavorites() {
+            if (!user) return;
+            try {
+                const res = await fetch(`/favorites/${user.email}`, { cache: "no-store" });
+                myFavoriteIds = await res.json();
+            } catch (e) { console.error(e); }
+        }
+
+        async function toggleFavorite(id, event) {
+            event.stopPropagation();
+            if (!user) { showToast("Войдите, чтобы добавлять в избранное", "info"); showLoginModal(); return; }
+            const isFav = myFavoriteIds.includes(id);
+            const heartEl = document.querySelector(`#card-${id} .heart-icon`);
+            if (isFav) {
+                await fetch(`/favorites/${user.email}/${id}`, { method: 'DELETE' });
+                myFavoriteIds = myFavoriteIds.filter(fId => fId !== id);
+                if (heartEl) { heartEl.innerText = '🤍'; heartEl.className = 'heart-icon inactive'; }
+            } else {
+                await fetch(`/favorites/${user.email}/${id}`, { method: 'POST' });
+                myFavoriteIds.push(id);
+                if (heartEl) { heartEl.innerText = '❤️'; heartEl.className = 'heart-icon active'; }
+            }
+        }
+
+        async function checkUnread() {
+            if (!user || !user.email) return;
+            try {
+                const res = await fetch(`/unread/${user.email}`);
+                const data = await res.json();
+                const badge = document.getElementById('unread-badge');
+                if (data.count > 0) { badge.innerText = data.count; badge.style.display = 'inline-block'; }
+                else { badge.style.display = 'none'; }
+            } catch (e) { console.error(e); }
+        }
+
+        let searchTimeout = null;
+        function debouncedLoadListings() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => loadListings(false), 500);
+        }
+        
+        async function loadListings(isLoadMore = false) {
+            if (isLoadMore) currentOffset += limitPerPage;
+            else { currentOffset = 0; allListings = []; document.getElementById('listings-container').innerHTML = ''; }
+
+            const categoryFilter = document.getElementById('filter-category').value;
+            const districtFilter = document.getElementById('filter-district').value;
+            const searchQuery = document.getElementById('search-input').value;
+            const sortQuery = document.getElementById('sort-select').value;
+            
+            let url = `/listings/?skip=${currentOffset}&limit=${limitPerPage}`;
+            if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
+            if (districtFilter) url += `&district=${encodeURIComponent(districtFilter)}`;
+            if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+            if (sortQuery) url += `&sort=${encodeURIComponent(sortQuery)}`;
+
+            try {
+                const response = await fetch(url);
+                const listings = await response.json();
+                
+                if (isLoadMore) allListings = allListings.concat(listings);
+                else allListings = listings;
+
+                const container = document.getElementById('listings-container');
+
+                if (listings.length === 0) {
+                    container.innerHTML = `
+                        <div style="width: 100%; text-align: center; padding: 50px 20px; color: #7f8c8d;">
+                            <h2 style="font-size: 40px; margin-bottom: 10px;">🔍</h2>
+                            <h3>Ничего не найдено</h3>
+                            <p>Попробуйте изменить поисковый запрос или выбрать другую категорию.</p>
+                        </div>
+                    `;
+                }
+
+                listings.forEach(item => {
+                    const card = document.createElement('div');
+                    card.id = `card-${item.id}`;
+                    card.className = item.is_promoted ? 'card promoted' : 'card';
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => openDetails(item.id);
+
+                    const isMyListing = (user && item.owner_email === user.email);
+                    const isFav = user ? myFavoriteIds.includes(item.id) : false;
+                    
+                    let buttonHtml = "";
+                    if (isMyListing) {
+                        buttonHtml = `
+                            <button class="btn btn-promote" onclick="event.stopPropagation(); startEdit(${item.id})" style="background:#f39c12;">Редактировать</button>
+                            <button class="btn" onclick="event.stopPropagation(); markAsSold(${item.id})" style="background:#27ae60;">Продано</button>
+                            <button class="btn btn-logout" onclick="event.stopPropagation(); deleteListing(${item.id})">Удалить</button>
+                        `;
+                    } else {
+                        buttonHtml = `<button class="btn btn-contact" onclick="event.stopPropagation(); openChatById(${item.id})">Написать в чат</button>`;
+                    }
+
+                    const safeTitle = escapeHtml(item.title);
+                    const safeImageUrl = escapeHtml(item.image_url);
+                    const safeDescription = escapeHtml(item.description);
+                    const safeCategory = escapeHtml(item.category);
+                    const safeDistrict = escapeHtml(item.district);
+                    const safeSeller = escapeHtml(item.seller_name);
+                    const safePrice = escapeHtml(item.price);
+
+                    const imageHtml = item.image_url 
+                        ? `<img src="${safeImageUrl}" class="card-img" alt="${safeTitle}">`
+                        : `<div class="card-img" style="display:flex; align-items:center; justify-content:center; color:#aaa;">Нет фото</div>`;
+
+                    card.innerHTML = `
+                        <div class="heart-icon ${isFav ? 'active' : 'inactive'}" onclick="toggleFavorite(${item.id}, event)">${isFav ? '❤️' : '🤍'}</div>
+                        ${item.is_promoted ? '<div class="badge">⭐ ТОП</div>' : ''}
+                        ${imageHtml}
+                        <h2>${safeTitle}</h2>
+                        <div class="price">${safePrice} ₽</div>
+                        <div class="desc">${safeDescription}</div>
+                        <div style="font-size:12px; color:#3498db; font-weight:bold; margin-bottom:10px;">
+                            🏷️ ${safeCategory || 'Не указана'} ${safeDistrict ? ' • 📍 ' + safeDistrict : ''}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size:12px; color:#555; margin-bottom:5px;">
+                            <span>👤 ${safeSeller}</span>
+                            <span>👁 ${item.views || 0}</span>
+                        </div>
+                        <div style="font-size:11px; color:#999; margin-bottom:10px;">🕒 ${formatDate(item.created_at)}</div>
+                        ${buttonHtml}
+                    `;
+                    container.appendChild(card);
+                });
+
+                const loadMoreBtn = document.getElementById('load-more-btn');
+                if (listings.length < limitPerPage) loadMoreBtn.style.display = 'none'; 
+                else loadMoreBtn.style.display = 'block';
+            } catch (e) { console.error(e); showToast("Ошибка загрузки ленты", "error"); }
+        }
+
+        function openDetails(idOrItem) {
+            let item;
+            if (typeof idOrItem === 'object') {
+                item = idOrItem;
+                if (!allListings.find(x => x.id === item.id)) allListings.push(item);
+            } else item = allListings.find(l => l.id === idOrItem);
+            
+            if (!item) return;
+
+            document.getElementById('det-title').innerText = item.title;
+            document.getElementById('det-price').innerText = item.price + ' ₽';
+            document.getElementById('det-desc').innerText = item.description;
+            
+            const galleryContainer = document.getElementById('det-gallery');
+            galleryContainer.innerHTML = '';
+            
+            let imagesToRender = [];
+            if (item.gallery_images) { try { imagesToRender = JSON.parse(item.gallery_images); } catch(e) { imagesToRender = []; } }
+            if (imagesToRender.length === 0 && item.image_url) imagesToRender.push(item.image_url);
+            
+            if (imagesToRender.length > 0) {
+                imagesToRender.forEach(url => galleryContainer.innerHTML += `<img src="${escapeHtml(url)}" class="gallery-img">`);
+                galleryContainer.style.display = 'flex';
+            } else galleryContainer.style.display = 'none';
+
+            const sellerNameSafe = escapeHtml(item.seller_name) || 'Неизвестный';
+            let info = `<div>🏷️ <b>Категория:</b> ${escapeHtml(item.category) || 'Не указана'}</div>`;
+            if (item.district) info += `<div style="margin-top: 8px;">📍 <b>Район:</b> ${escapeHtml(item.district)}</div>`;
+            info += `<div style="margin-top: 8px;">👤 <b>Продавец:</b> <span id="seller-link-${item.id}" style="color: #3498db; cursor: pointer; text-decoration: underline;">${sellerNameSafe}</span></div>`;
+            info += `<div style="margin-top: 8px;">👁️ <b>Просмотров:</b> <span id="views-count-${item.id}">${item.views || 0}</span></div>`;
+            info += `<div style="margin-top: 8px;">🕒 <b>Размещено:</b> ${formatDate(item.created_at)}</div>`; 
+            
+            document.getElementById('det-info').innerHTML = info;
+
+            const sellerLink = document.getElementById('seller-link-' + item.id);
+            if (sellerLink) sellerLink.onclick = function(e) { e.stopPropagation(); openSellerProfile(item.id); };
+
+            const phoneEl = document.getElementById('det-phone');
+            if (item.seller_phone) {
+                phoneEl.href = `tel:${escapeHtml(item.seller_phone)}`;
+                phoneEl.innerText = `📞 Позвонить: ${escapeHtml(item.seller_phone)}`;
+                phoneEl.style.display = 'block';
+            } else phoneEl.style.display = 'none';
+
+            document.getElementById('details-modal').style.display = 'flex';
+
+            if (user && item.owner_email !== user.email) {
+                fetch(`/listings/${item.id}/view?email=${encodeURIComponent(user.email)}`, { method: 'PUT' })
+                    .then(res => res.json()).then(data => {
+                        if (data.views !== undefined) {
+                            const viewsSpan = document.getElementById('views-count-' + item.id);
+                            if (viewsSpan) viewsSpan.innerText = data.views;
+                        }
+                    });
+            } else if (!user) fetch(`/listings/${item.id}/view`, { method: 'PUT' }); 
+        }
+
+        function openSellerProfile(listingId) {
+            const item = allListings.find(l => l.id === listingId);
+            if (!item || !item.owner_email) return;
+
+            document.getElementById('details-modal').style.display = 'none';
+            const profileModal = document.getElementById('seller-profile-modal');
+            if (!profileModal) return;
+
+            document.getElementById('seller-profile-title').innerText = "Товары продавца: " + (item.seller_name || 'Неизвестный');
+            const container = document.getElementById('seller-profile-list');
+            container.innerHTML = '<p>Загрузка...</p>';
+            profileModal.style.display = 'flex';
+
+            fetch(`/seller-listings/${item.owner_email}`).then(res => res.json()).then(listings => {
+                container.innerHTML = '';
+                if (listings.length === 0) container.innerHTML = '<p>У этого продавца пока нет активных объявлений.</p>';
+                else {
+                    listings.forEach(l => {
+                        const div = document.createElement('div');
+                        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; display: flex; gap: 15px; align-items: center; cursor: pointer;";
+                        const imgSrc = l.image_url ? escapeHtml(l.image_url) : '';
+                        const imgHtml = imgSrc ? `<img src="${imgSrc}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">` : `<div style="width: 80px; height: 80px; background: #eee; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">Нет фото</div>`;
+                        div.innerHTML = `
+                            ${imgHtml}
+                            <div style="flex-grow: 1;">
+                                <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${escapeHtml(l.title)}</div>
+                                <div style="color: #27ae60; font-weight: bold; margin-bottom: 5px;">${escapeHtml(l.price)} ₽</div>
+                                <div style="font-size: 12px; color: #3498db;">🏷️ ${escapeHtml(l.category) || 'Не указана'} ${l.district ? ' • 📍 ' + escapeHtml(l.district) : ''}</div>
+                            </div>
+                        `;
+                        div.onclick = () => { document.getElementById('seller-profile-modal').style.display = 'none'; openDetails(l); };
+                        container.appendChild(div);
+                    });
+                }
+            }).catch(e => { container.innerHTML = '<p>Ошибка загрузки товаров.</p>'; });
+        }
+
+        function closeDetails() { document.getElementById('details-modal').style.display = 'none'; }
+
+        function openChatById(id) {
+            if (!user) { showToast("Войдите, чтобы написать продавцу", "info"); showLoginModal(); return; }
+            const item = allListings.find(l => l.id === id);
+            if (item) {
+                if (!item.owner_email) return showToast("У продавца не указан email. Связь невозможна.", "error");
+                openChat(item.id, item.title, item.owner_email);
+            }
+        }
+
+        async function createListing(event) {
+            event.preventDefault(); 
+            const fileInput = document.getElementById('image_file');
+            let mainImageUrl = null;
+            let galleryUrls = [];
+
+            if (editListingId) {
+                const oldItem = allListings.find(l => l.id === editListingId);
+                if (oldItem) {
+                    mainImageUrl = oldItem.image_url;
+                    if (fileInput.files.length === 0 && oldItem.gallery_images) galleryUrls = JSON.parse(oldItem.gallery_images);
+                }
+            }
+
+            if (fileInput.files.length > 0) {
+                showToast("Загрузка фото...", "info");
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    const formData = new FormData();
+                    formData.append("file", fileInput.files[i]);
+                    try {
+                        const uploadRes = await fetch('/upload/', { method: 'POST', body: formData });
+                        if (!uploadRes.ok) throw new Error('Ошибка сервера при загрузке файла');
+                        const uploadData = await uploadRes.json();
+                        galleryUrls.push(uploadData.image_url);
+                    } catch (error) { return showToast("Ошибка при загрузке фото: " + error.message, "error"); }
+                }
+                if (galleryUrls.length > 0) mainImageUrl = galleryUrls[0]; 
+            }
+
+            const data = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                price: parseFloat(document.getElementById('price').value) || 0,
+                image_url: mainImageUrl,
+                gallery_images: JSON.stringify(galleryUrls), 
+                category: document.getElementById('category').value || 'Другое',
+                district: document.getElementById('district').value || null,
+                seller_name: user.name,
+                seller_phone: document.getElementById('seller_phone').value,
+                owner_email: user.email
+            };
+
+            try {
+                let response;
+                if (editListingId) response = await fetch(`/listings/${editListingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                else response = await fetch('/listings/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+
+                if (!response.ok) { const errorData = await response.json(); return showToast("Ошибка сохранения: " + JSON.stringify(errorData.detail || errorData), "error"); }
+                showToast(editListingId ? "Объявление обновлено!" : "Объявление опубликовано!", "success");
+                closeCreateModal(); 
+                loadListings(false); 
+            } catch (error) { showToast("Ошибка сети: " + error.message, "error"); }
+        }
+
+        async function markAsSold(id, fromModal = false) {
+            showConfirm("Вы уверены, что продали эту вещь? Объявление будет скрыто из общей ленты.", async () => {
+                try {
+                    const response = await fetch(`/listings/${id}/sold`, { method: 'PUT' });
+                    if (!response.ok) return showToast("Ошибка изменения статуса", "error");
+                    showToast("Товар помечен как проданный", "success");
+                    loadListings(false);
+                    if (fromModal) showMyListings();
+                    if (document.getElementById('admin-modal').style.display === 'flex') showAdminPanel();
+                } catch (e) { showToast("Ошибка сети", "error"); }
+            });
+        }
+
+        async function deleteListing(id, fromModal = false, fromAdmin = false) {
+            showConfirm("Вы уверены, что хотите удалить это объявление? Восстановить его будет нельзя.", async () => {
+                try {
+                    const response = await fetch(`/listings/${id}`, { method: 'DELETE' });
+                    if (!response.ok) return showToast("Ошибка удаления", "error");
+                    showToast("Объявление удалено", "success");
+                    loadListings(false);
+                    if (fromModal) showMyListings();
+                    if (fromAdmin) showAdminPanel();
+                } catch (e) { showToast("Ошибка сети", "error"); }
+            });
+        }
+
+        function startEdit(id) {
+            if (!user) return;
+            const item = allListings.find(l => l.id === id);
+            if (!item) return;
+
+            document.getElementById('title').value = item.title;
+            document.getElementById('description').value = item.description;
+            document.getElementById('price').value = item.price;
+            
+            document.getElementById('image_file').value = "";
+            const imgInfo = document.getElementById('current-image-info');
+            if (item.image_url) { imgInfo.innerText = "Текущие фото сохранены. Выберите новые файлы, если хотите заменить их."; imgInfo.style.display = "block"; }
+            else imgInfo.style.display = "none";
+
+            document.getElementById('category').value = item.category || 'Другое';
+            document.getElementById('district').value = item.district || '';
+            document.getElementById('seller_phone').value = item.seller_phone || '';
+
+            editListingId = id;
+            document.getElementById('form-title').innerText = "Редактировать объявление";
+            document.getElementById('form-submit-btn').innerText = "Сохранить изменения";
+            document.getElementById('form-submit-btn').style.background = "#f39c12"; 
+            document.getElementById('cancel-edit-btn').style.display = "block";
+            
+            document.getElementById('create-listing-modal').style.display = 'flex';
+        }
+
+        function cancelEdit() {
+            editListingId = null;
+            document.getElementById('add-form').reset();
+            document.getElementById('image_file').value = "";
+            document.getElementById('current-image-info').style.display = "none";
+            document.getElementById('form-title').innerText = "Выставить вещь на продажу";
+            document.getElementById('form-submit-btn').innerText = "Опубликовать";
+            document.getElementById('form-submit-btn').style.background = "#27ae60"; 
+            document.getElementById('cancel-edit-btn').style.display = "none";
+        }       
+
+        function openChat(listingId, title, otherEmail) {
+            currentListingId = listingId;
+            currentOtherEmail = otherEmail; 
+            document.getElementById('chat-title').innerText = "Товар: " + title;
+            document.getElementById('chat-modal').style.display = 'flex';
+            loadMessages();
+            fetch(`/messages/read/${listingId}/${otherEmail}/${user.email}`, { method: 'PUT' }).then(() => checkUnread()); 
+            if(chatInterval) clearInterval(chatInterval);
+            chatInterval = setInterval(loadMessages, 3000);
+        }
+
+        function closeChat() {
+            document.getElementById('chat-modal').style.display = 'none';
+            currentListingId = null;
+            currentOtherEmail = null;
+            if(chatInterval) { clearInterval(chatInterval); chatInterval = null; }
+        }
+
+        async function loadMessages() {
+            if (!currentListingId || !currentOtherEmail) return;
+            try {
+                const response = await fetch(`/messages/${currentListingId}/${currentOtherEmail}/${user.email}`);
+                if (!response.ok) return;
+                const messages = await response.json();
+                if (!Array.isArray(messages)) return;
+
+                const container = document.getElementById('chat-messages');
+                const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+                container.innerHTML = '';
+                
+                let lastDateStr = '';
+
+                messages.forEach(msg => {
+                    const isOwn = msg.sender_email === user.email;
+                    let displayTime = msg.created_at;
+                    let currentDateStr = '';
+                    
+                    if (msg.created_at && msg.created_at.length > 10) {
+                        const msgDate = new Date(msg.created_at.replace(' ', 'T'));
+                        const today = new Date();
+                        const yesterday = new Date();
+                        yesterday.setDate(today.getDate() - 1);
+
+                        if (msgDate.toDateString() === today.toDateString()) currentDateStr = 'Сегодня';
+                        else if (msgDate.toDateString() === yesterday.toDateString()) currentDateStr = 'Вчера';
+                        else currentDateStr = msgDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+                        displayTime = msgDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    } else currentDateStr = 'Ранее';
+
+                    if (currentDateStr !== lastDateStr) {
+                        container.innerHTML += `<div class="date-divider"><span>${currentDateStr}</span></div>`;
+                        lastDateStr = currentDateStr;
+                    }
+
+                    let contentHtml = '';
+                    if (msg.text) contentHtml += `<div style="margin-bottom: 5px;">${escapeHtml(msg.text)}</div>`;
+                    if (msg.image_url) contentHtml += `<img src="${escapeHtml(msg.image_url)}" class="chat-img" onclick="window.open('${escapeHtml(msg.image_url)}', '_blank')">`;
+
+                    container.innerHTML += `
+                        <div class="msg-bubble ${isOwn ? 'msg-own' : 'msg-other'}">
+                            <span class="msg-sender">${escapeHtml(msg.sender_email)} • ${escapeHtml(displayTime)}</span>
+                            ${contentHtml}
+                        </div>
+                    `;
+                });
+                if (isScrolledToBottom) container.scrollTop = container.scrollHeight;
+            } catch (e) { console.error("Ошибка при загрузке чата:", e); }
+        }
+
+        async function handleChatImageUpload() {
+            const input = document.getElementById('chat-image-input');
+            if (!input.files.length || !currentListingId) return;
+            const formData = new FormData();
+            formData.append("file", input.files[0]);
+            showToast("Загрузка фото...", "info");
+            try {
+                const uploadRes = await fetch('/upload/', { method: 'POST', body: formData });
+                if (!uploadRes.ok) throw new Error('Ошибка загрузки');
+                const uploadData = await uploadRes.json();
+                await fetch('/messages/', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        listing_id: currentListingId, text: "", image_url: uploadData.image_url,
+                        sender_email: user.email, receiver_email: currentOtherEmail 
+                    })
+                });
+                loadMessages();
+            } catch (e) { showToast("Ошибка при отправке фото", "error"); } finally { input.value = ''; }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text || !currentListingId) return;
+            input.value = ''; 
+            await fetch('/messages/', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    listing_id: currentListingId, text: text, image_url: null,
+                    sender_email: user.email, receiver_email: currentOtherEmail 
+                })
+            });
+            loadMessages();
+        }
+
+        async function showMyListings() {
+            if (!user) return;
+            const response = await fetch(`/my-listings/${user.email}`, { cache: "no-store" });
+            const listings = await response.json();
+            const container = document.getElementById('my-listings-list');
+            container.innerHTML = '';
+
+            if (listings.length === 0) container.innerHTML = '<p>Вы пока ничего не выставили на продажу.</p>';
+            else {
+                listings.forEach(item => {
+                    const div = document.createElement('div');
+                    div.style = `border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; display: flex; gap: 15px; align-items: center; ${item.is_sold ? 'background: #f9f9f9; opacity: 0.7;' : ''}`;
+                    const imgSrc = item.image_url ? escapeHtml(item.image_url) : '';
+                    const imgHtml = imgSrc ? `<img src="${imgSrc}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">` : `<div style="width: 80px; height: 80px; background: #eee; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">Нет фото</div>`;
+                    let statusHtml = '';
+                    if (item.is_sold) statusHtml = `<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">ПРОДАНО</span>`;
+                    else if (item.is_promoted) statusHtml = `<span style="background: #f39c12; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">⭐ ТОП</span>`;
+                    else statusHtml = `<span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">В ПРОДАЖЕ</span>`;
+
+                    div.innerHTML = `
+                        ${imgHtml}
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${escapeHtml(item.title)}</div>
+                            <div style="color: #27ae60; font-weight: bold; margin-bottom: 5px;">${escapeHtml(item.price)} ₽</div>
+                            <div>${statusHtml}</div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px; min-width: 120px;">
+                            <button class="btn btn-promote" onclick="startEdit(${item.id}); document.getElementById('my-listings-modal').style.display='none';" style="background:#f39c12; margin:0;">Редактировать</button>
+                            ${!item.is_sold ? `<button class="btn" onclick="markAsSold(${item.id}, true)" style="background:#27ae60; margin:0;">Продано</button>` : ''}
+                            <button class="btn btn-logout" onclick="deleteListing(${item.id}, true)" style="margin:0;">Удалить</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+            document.getElementById('my-listings-modal').style.display = 'flex';
+        }
+
+        async function showMyFavorites() {
+            if (!user) return;
+            const response = await fetch(`/favorites/details/${user.email}`, { cache: "no-store" });
+            const listings = await response.json();
+            const container = document.getElementById('favorites-list');
+            container.innerHTML = '';
+
+            if (listings.length === 0) container.innerHTML = '<p>Вы пока не добавили ни одного товара в избранное.</p>';
+            else {
+                listings.forEach(item => {
+                    const div = document.createElement('div');
+                    div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; display: flex; gap: 15px; align-items: center;";
+                    const imgSrc = item.image_url ? escapeHtml(item.image_url) : '';
+                    const imgHtml = imgSrc ? `<img src="${imgSrc}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">` : `<div style="width: 80px; height: 80px; background: #eee; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">Нет фото</div>`;
+                    div.innerHTML = `
+                        ${imgHtml}
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${escapeHtml(item.title)}</div>
+                            <div style="color: #27ae60; font-weight: bold; margin-bottom: 5px;">${escapeHtml(item.price)} ₽</div>
+                            <div style="font-size: 12px; color: #3498db;">📍 ${escapeHtml(item.district) || 'Район не указан'}</div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px; min-width: 120px;">
+                            <button class="btn btn-contact" onclick="openChatById(${item.id})" style="margin:0;">Написать</button>
+                            <button class="btn btn-logout" onclick="toggleFavorite(${item.id}, event); showMyFavorites();" style="margin:0;">Убрать</button>
+                        </div>
+                    `;
+                    div.style.cursor = 'pointer';
+                    div.onclick = (e) => { if (e.target.tagName !== 'BUTTON') openDetails(item); };
+                    container.appendChild(div);
+                });
+            }
+            document.getElementById('favorites-modal').style.display = 'flex';
+        }
+
+        async function showMyChats() {
+            if (!user) return;
+            const response = await fetch(`/my-chats/${user.email}`, { cache: "no-store" });
+            const chats = await response.json();
+            const listContainer = document.getElementById('my-chats-list');
+            listContainer.innerHTML = '';
+
+            const chatKeys = Object.keys(chats);
+            if (chatKeys.length === 0) listContainer.innerHTML = '<p>Вам пока никто не писал.</p>';
+            else {
+                chatKeys.sort((a, b) => (chats[b].unread_count || 0) - (chats[a].unread_count || 0));
+                chatKeys.forEach(key => {
+                    const chat = chats[key];
+                    const lastMsg = chat.messages[chat.messages.length - 1];
+                    const unreadBadge = chat.unread_count > 0 ? `<span style="background: #e74c3c; color: white; border-radius: 12px; padding: 2px 8px; font-size: 12px; font-weight: bold; margin-left: 10px;">${chat.unread_count}</span>` : '';
+                    const div = document.createElement('div');
+                    div.style = `border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; cursor: pointer; ${chat.unread_count > 0 ? 'background-color: #fff9e6; border-color: #f39c12;' : ''}`;
+                    let lastText = lastMsg.text;
+                    if (!lastText && lastMsg.image_url) lastText = "📷 Фотография";
+                    div.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-weight:bold; color:#2c3e50; font-size: 16px;">${escapeHtml(chat.title)}</div>
+                            ${unreadBadge}
+                        </div>
+                        <div style="font-size:12px; color:#e67e22; margin: 5px 0;">Собеседник: ${escapeHtml(chat.other_email)}</div>
+                        <div style="font-size:14px; color:#7f8c8d;">Последнее: "${escapeHtml(lastText)}"</div>
+                    `;
+                    div.onclick = () => { 
+                        document.getElementById('my-chats-modal').style.display = 'none'; 
+                        if (chat.listing_id === 0) {
+                            openSupportChat();
+                        } else {
+                            openChat(chat.listing_id, chat.title, chat.other_email); 
+                        }
+                    };
+                    listContainer.appendChild(div);
+                });
+            }
+            document.getElementById('my-chats-modal').style.display = 'flex';
+        }
+
+        async function showAdminPanel() {
+            if (!user || user.email !== ADMIN_EMAIL) return;
+            
+            // Загрузка обращений в поддержку
+            const supportList = document.getElementById('admin-support-list');
+            supportList.innerHTML = '<p>Загрузка...</p>';
+            try {
+                const sRes = await fetch('/admin/support-chats');
+                const supportChats = await sRes.json();
+                supportList.innerHTML = '';
+                
+                const sKeys = Object.keys(supportChats);
+                if (sKeys.length === 0) supportList.innerHTML = '<p>Обращений пока нет.</p>';
+                
+                sKeys.forEach(email => {
+                    const chat = supportChats[email];
+                    const div = document.createElement('div');
+                    div.style = "border: 1px solid #ddd; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; background: white;";
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-weight: bold;">${escapeHtml(email)}</div>
+                            <div style="font-size: 12px; color: #555;">Последнее: "${escapeHtml(chat.messages[chat.messages.length-1].text)}"</div>
+                        </div>
+                        <button class="btn" onclick="openAdminSupportReply('${email}')" style="margin:0; padding: 5px 10px; background:#3498db; width: auto;">
+                            Ответить ${chat.unread_count > 0 ? `(${chat.unread_count})` : ''}
+                        </button>
+                    `;
+                    supportList.appendChild(div);
+                });
+            } catch(e) { supportList.innerHTML = '<p>Ошибка загрузки.</p>'; }
+
+            const catContainer = document.getElementById('admin-categories-list');
+            catContainer.innerHTML = '';
+            globalCategories.forEach(c => {
+                catContainer.innerHTML += `
+                    <span style="background: white; border: 1px solid #ccc; padding: 5px 10px; border-radius: 15px; font-size: 14px; display: flex; align-items: center; gap: 5px;">
+                        ${escapeHtml(c.name)}
+                        <span onclick="deleteCategory(${c.id})" style="color: red; cursor: pointer; font-weight: bold; margin-left: 5px;">✖</span>
+                    </span>
+                `;
+            });
+
+            const distContainer = document.getElementById('admin-districts-list');
+            distContainer.innerHTML = '';
+            globalDistricts.forEach(d => {
+                distContainer.innerHTML += `
+                    <span style="background: white; border: 1px solid #ccc; padding: 5px 10px; border-radius: 15px; font-size: 14px; display: flex; align-items: center; gap: 5px;">
+                        ${escapeHtml(d.name)}
+                        <span onclick="deleteDistrict(${d.id})" style="color: red; cursor: pointer; font-weight: bold; margin-left: 5px;">✖</span>
+                    </span>
+                `;
+            });
+
+            const usersList = document.getElementById('admin-users-list');
+            usersList.innerHTML = '<p>Загрузка...</p>';
+            try {
+                const uRes = await fetch('/admin/users');
+                const users = await uRes.json();
+                usersList.innerHTML = '';
+                if (users.length === 0) usersList.innerHTML = '<p>Пользователей пока нет.</p>';
+                users.forEach(u => {
+                    const div = document.createElement('div');
+                    div.style = `border: 1px solid #ddd; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; ${u.is_blocked ? 'background: #ffeaea;' : 'background: white;'}`;
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-weight: bold;">${escapeHtml(u.name)} <span style="font-size:12px; color:#999;">(${escapeHtml(u.email)})</span></div>
+                            <div style="font-size: 12px; color: ${u.is_blocked ? 'red' : 'green'};">
+                                ${u.is_blocked ? '🚫 Заблокирован' : '✅ Активен'} | ${u.is_verified ? 'Почта подтверждена' : 'Почта не подтверждена'}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn" onclick="toggleUserBlock(${u.id})" style="margin:0; padding: 5px 10px; background:${u.is_blocked ? '#2ecc71' : '#e74c3c'}; width: auto;">
+                                ${u.is_blocked ? 'Разблокировать' : 'Заблокировать'}
+                            </button>
+                            <button class="btn" onclick="adminForceReset(${u.id})" style="margin:0; padding: 5px 10px; background:#f39c12; width: auto;">Сбросить пароль</button>
+                        </div>
+                    `;
+                    usersList.appendChild(div);
+                });
+            } catch(e) { usersList.innerHTML = '<p style="color:red;">Ошибка загрузки пользователей</p>'; }
+
+            const response = await fetch(`/admin/listings`, { cache: "no-store" });
+            const listings = await response.json();
+            allListings = listings; 
+
+            const container = document.getElementById('admin-listings-list');
+            container.innerHTML = '';
+
+            if (listings.length === 0) container.innerHTML = '<p>На сайте пока нет товаров.</p>';
+            else {
+                listings.forEach(item => {
+                    const div = document.createElement('div');
+                    let rowClass = 'admin-row';
+                    if (item.is_blocked) rowClass += ' blocked';
+                    else if (item.is_sold) rowClass += ' sold';
+                    div.className = rowClass;
+                    
+                    const imgSrc = item.image_url ? escapeHtml(item.image_url) : '';
+                    const imgHtml = imgSrc ? `<img src="${imgSrc}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 5px;">` : `<div style="width: 60px; height: 60px; background: #eee; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">Нет фото</div>`;
+
+                    let statuses = [];
+                    if (item.is_blocked) statuses.push(`<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">ЗАБЛОКИРОВАН</span>`);
+                    if (item.is_sold) statuses.push(`<span style="background: #7f8c8d; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">ПРОДАН</span>`);
+                    if (item.is_promoted) statuses.push(`<span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px;">ТОП</span>`);
+
+                    div.innerHTML = `
+                        ${imgHtml}
+                        <div style="flex-grow: 1; min-width: 200px;">
+                            <div style="font-weight: bold; font-size: 15px; margin-bottom: 3px;">${escapeHtml(item.title)} <span style="color:#999; font-size:12px;">(ID: ${item.id})</span></div>
+                            <div style="font-size: 13px; color: #555;">Цена: ${escapeHtml(item.price)} ₽ | Владелец: ${escapeHtml(item.owner_email)}</div>
+                            <div style="font-size: 12px; color: #3498db; margin-top: 2px;">📍 ${escapeHtml(item.district) || 'Район не указан'}</div>
+                            <div style="margin-top: 5px;">${statuses.join(' ')}</div>
+                        </div>
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            <button class="btn btn-promote" onclick="openDetails(${item.id})" style="margin:0; padding: 8px 12px; background:#3498db; width: auto;">👁 Посмотреть</button>
+                            <button class="btn" onclick="toggleBlock(${item.id})" style="margin:0; padding: 8px 12px; background:${item.is_blocked ? '#2ecc71' : '#e67e22'}; width: auto;">
+                                ${item.is_blocked ? 'Разблокировать' : 'Заблокировать'}
+                            </button>
+                            <button class="btn btn-logout" onclick="deleteListing(${item.id}, false, true)" style="margin:0; padding: 8px 12px; width: auto;">Удалить</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+            document.getElementById('admin-modal').style.display = 'flex';
+        }
+
+        // --- ОТВЕТ АДМИНА В ПОДДЕРЖКУ ---
+        async function openAdminSupportReply(userEmail) {
+            document.getElementById('admin-modal').style.display = 'none';
+            document.getElementById('support-chat-modal').style.display = 'flex';
+			            // 👇 ПОМЕЧАЕМ СООБЩЕНИЯ ОТ ПОЛЬЗОВАТЕЛЯ КАК ПРОЧИТАННЫЕ
+            fetch(`/messages/read/0/${userEmail}/admin@admin.com`, { method: 'PUT' }).then(() => checkUnread());
+            document.getElementById('support-chat-modal').querySelector('.chat-header span').innerText = "🎧 Поддержка: " + userEmail;
+            
+            const container = document.getElementById('support-messages');
+            container.innerHTML = '<p>Загрузка...</p>';
+            
+            const loadAdminSupport = async () => {
+                try {
+                    const res = await fetch(`/messages/0/${userEmail}/admin@admin.com`);
+                    const messages = await res.json();
+                    container.innerHTML = '';
+                    messages.forEach(msg => {
+                        const isOwn = msg.sender_email === "admin@admin.com";
+                        container.innerHTML += `
+                            <div class="msg-bubble ${isOwn ? 'msg-own' : 'msg-other'}">
+                                <span class="msg-sender">${isOwn ? 'Вы (Админ)' : escapeHtml(userEmail)} • ${formatDate(msg.created_at)}</span>
+                                ${escapeHtml(msg.text)}
+                            </div>
+                        `;
+                    });
+                    container.scrollTop = container.scrollHeight;
+                } catch (e) { console.error(e); }
+            };
+            
+            await loadAdminSupport();
+            if (supportInterval) clearInterval(supportInterval);
+            supportInterval = setInterval(loadAdminSupport, 3000);
+
+            // Переопределяем кнопку отправки для админа
+            const inputArea = document.getElementById('support-chat-modal').querySelector('.chat-input-area');
+            const sendBtn = inputArea.querySelector('button');
+            const input = document.getElementById('support-input');
+            
+            sendBtn.onclick = async () => {
+                const text = input.value.trim();
+                if (!text) return;
+                input.value = '';
+                await fetch('/messages/', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        listing_id: 0, text: text, image_url: null,
+                        sender_email: "admin@admin.com", receiver_email: userEmail
+                    })
+                });
+                loadAdminSupport();
+            };
+        }
+
+        async function toggleBlock(id) {
+            try {
+                const res = await fetch(`/admin/listings/${id}/toggle-block`, { method: 'PUT' });
+                if (res.ok) { showToast("Статус блокировки изменен", "success"); showAdminPanel(); loadListings(false); }
+            } catch (e) { showToast("Ошибка блокировки", "error"); }
+        }
+
+        async function toggleUserBlock(id) {
+            try {
+                const res = await fetch(`/admin/users/${id}/toggle-block`, { method: 'PUT' });
+                if (res.ok) { showToast("Статус пользователя изменен", "success"); showAdminPanel(); }
+            } catch (e) { showToast("Ошибка", "error"); }
+        }
+
+        async function adminForceReset(id) {
+            showConfirm("Сбросить пароль пользователя на стандартный '123456'?", async () => {
+                try {
+                    const res = await fetch(`/admin/users/${id}/force-reset`, { method: 'PUT' });
+                    if (res.ok) { showToast("Пароль сброшен на 123456", "success"); }
+                } catch (e) { showToast("Ошибка", "error"); }
+            });
+        }
+
+        async function addCategory() {
+            const input = document.getElementById('new-cat-input');
+            const name = input.value.trim();
+            if (!name) return;
+            try {
+                const res = await fetch('/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+                if (res.ok) { showToast("Категория добавлена", "success"); input.value = ''; await loadCategories(); showAdminPanel(); }
+                else { const err = await res.json(); showToast(err.detail || "Ошибка добавления", "error"); }
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        async function deleteCategory(id) {
+            showConfirm("Удалить категорию?", async () => {
+                try {
+                    const res = await fetch(`/categories/${id}`, { method: 'DELETE' });
+                    if (res.ok) { showToast("Категория удалена", "success"); await loadCategories(); showAdminPanel(); }
+                } catch (e) { showToast("Ошибка удаления", "error"); }
+            });
+        }
+
+        async function addDistrict() {
+            const input = document.getElementById('new-dist-input');
+            const name = input.value.trim();
+            if (!name) return;
+            try {
+                const res = await fetch('/districts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+                if (res.ok) { showToast("Район добавлен", "success"); input.value = ''; await loadDistricts(); showAdminPanel(); }
+                else { const err = await res.json(); showToast(err.detail || "Ошибка добавления", "error"); }
+            } catch (e) { showToast("Ошибка сети", "error"); }
+        }
+
+        async function deleteDistrict(id) {
+            showConfirm("Удалить район?", async () => {
+                try {
+                    const res = await fetch(`/districts/${id}`, { method: 'DELETE' });
+                    if (res.ok) { showToast("Район удален", "success"); await loadDistricts(); showAdminPanel(); }
+                } catch (e) { showToast("Ошибка удаления", "error"); }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
