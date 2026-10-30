@@ -11,6 +11,8 @@ import os
 import uuid
 import hashlib
 import random
+import smtplib
+from email.mime.text import MIMEText
 from functools import lru_cache
 from pathlib import Path
 from supabase import create_client, Client
@@ -182,6 +184,35 @@ def get_supabase() -> Client:
 
     return create_client(supabase_url, supabase_key)
 
+def send_email(to_email: str, subject: str, body: str):
+    # Получаем настройки из переменных окружения Render
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT", 465))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+
+    # Если вы еще не добавили переменные в Render, код просто выведет письмо в консоль
+    if not smtp_user or not smtp_password:
+        print(f"[EMAIL FALLBACK] Кому: {to_email} | Тема: {subject} | Текст: {body}")
+        return
+
+    # Формируем само письмо
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = smtp_user
+    msg["To"] = to_email
+
+    try:
+        # Подключаемся к почтовому серверу и отправляем
+        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        print(f"Письмо успешно отправлено на {to_email}")
+    except Exception as e:
+        print(f"Ошибка отправки письма: {e}")
+        # Если почта не ушла (например, Яндекс заблокировал), код все равно покажется в логах
+        print(f"[EMAIL FALLBACK] Кому: {to_email} | Код: {body}")
+
 def hash_password(password: str):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -269,8 +300,12 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
 
-    print(f"\n{'='*40}\n📧 КОД ПОДТВЕРЖДЕНИЯ ДЛЯ {user_data.email}: {code}\n{'='*40}\n")
-    return {"status": "ok", "message": "Код отправлен (смотрите терминал)"}
+    subject = "Сброс пароля на Районной Барахолке"
+    message = f"Здравствуйте!\n\nВаш код для сброса пароля: {code}\n\nЕсли вы не запрашивали сброс пароля, просто проигнорируйте это письмо."
+    
+    send_email(data.email, subject, message)
+    
+    return {"status": "ok", "message": "Код для сброса отправлен на вашу почту"}
 
 @app.post("/verify")
 def verify_user(data: UserVerify, db: Session = Depends(get_db)):
@@ -302,8 +337,12 @@ def request_password_reset(data: ResetRequest, db: Session = Depends(get_db)):
     code = str(random.randint(1000, 9999))
     user.reset_code = code
     db.commit()
-    print(f"\n{'='*40}\n🔑 КОД ВОССТАНОВЛЕНИЯ ДЛЯ {data.email}: {code}\n{'='*40}\n")
-    return {"status": "ok", "message": "Код для сброса отправлен (смотрите терминал)"}
+    subject = "Подтверждение регистрации на Районной Барахолке"
+    message = f"Здравствуйте!\n\nВаш код для подтверждения регистрации: {code}\n\nЕсли вы не регистрировались на сайте, просто проигнорируйте это письмо."
+    
+    send_email(user_data.email, subject, message)
+    
+    return {"status": "ok", "message": "Код отправлен на вашу почту"}
 
 @app.post("/reset-password-confirm")
 def confirm_password_reset(data: ResetConfirm, db: Session = Depends(get_db)):
